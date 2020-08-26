@@ -49,47 +49,21 @@ public class DbConnection {
     /**
     * Retrieves the next request token ID to use.
     */
-    private int largestRequestToken() throws SQLException {
-        Statement stmt = null;
-        String query = "SELECT requestToken FROM authorised_apps ORDER BY requestToken DESC LIMIT 1;";
+    private String nextRequestToken() {
+		// passes to generateSalt method to produce random value
+		SecurityConfiguration config = Program.getInstance().getSecurityConfiguration();
+		return config.generateSalt();
 
-        try {
-            stmt = this.connection.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-
-            if(rs.next()) {
-                return rs.getInt("requestToken") + 1;
-            }
-        } catch (SQLException e ) {
-            throw e;
-        } finally {
-            if (stmt != null) { stmt.close(); }
-        }
-
-        return 0;
     }
 
     /**
     * Retrieves the next access token ID to use.
     */
-    private int largestAccessToken() throws SQLException {
-        Statement stmt = null;
-        String query = "SELECT accessToken FROM authorised_apps ORDER BY accessToken DESC LIMIT 1;";
+    private String nextAccessToken() {
+		// passes to generateSalt method to produce random value
+        SecurityConfiguration config = Program.getInstance().getSecurityConfiguration();
+		return config.generateSalt();
 
-        try {
-            stmt = this.connection.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-
-            if(rs.next()) {
-                return rs.getInt("accessToken") + 1;
-            }
-        } catch (SQLException e ) {
-            throw e;
-        } finally {
-            if (stmt != null) { stmt.close(); }
-        }
-
-        return 0;
     }
 
     /**
@@ -97,38 +71,86 @@ public class DbConnection {
     * assumes that the ID of the user is not set to anything.
     * @param user The user account to insert.
     */
-    public void createUser(WondoughUser user) throws SQLException {
+    public boolean createUser(WondoughUser user) throws SQLException {
+		if (this.findUserByName(user.getUsername()) != null) {
+			return false;
+		}
         // get the next available ID for this user
         int id = this.largestUserID();
 
         // create a prepared statement to insert the user account
         // into the database
-        Statement stmt = null;
-        String query = "INSERT INTO users (id,username,password,salt,iterations,keySize) VALUES (" + id + ", '" + user.getUsername() + "' , '" + user.getHashedPassword() + "' , '" + user.getSalt() + "' ," + user.getIterations() + "," + user.getKeySize() + ");";
+        PreparedStatement stmt = null;
+        String query = "INSERT INTO users (id,username,password,salt,iterations,keySize) VALUES (?,?,?,?,?,?);";
 
         // try to insert the user into the database
         try {
-            stmt = this.connection.createStatement();
-            stmt.executeUpdate(query);
+            stmt = this.connection.prepareStatement(query);
+            stmt.setInt(1, id);
+			stmt.setString(2, user.getUsername());
+			stmt.setString(3, user.getHashedPassword());
+			stmt.setString(4, user.getSalt());
+			stmt.setInt(5, user.getIterations());
+			stmt.setInt(6, user.getKeySize());
+
+			stmt.executeUpdate();
         } catch (SQLException e ) {
             throw e;
         } finally {
             if (stmt != null) { stmt.close(); }
+			return true;
         }
     }
+
+	/**
+    * Updates the specified user account in the database.
+    * @param user The user account to update.
+	* @param iterations The new iterations value to insert.
+	* @param keySize The new keySize value to insert.
+	* @param user The new hashedPassword value to insert.
+    */
+	public void updateUser(String username, int iterations, int keySize, String hashedPassword) throws SQLException {
+
+		// create a prepared statement to insert the user account
+        // into the database
+		PreparedStatement stmt = null;
+		String query = "UPDATE users SET iterations=?, keysize=?, password=? WHERE username =?";
+
+		// try to update the user in the database
+		try {
+			stmt = this.connection.prepareStatement(query);
+			stmt.setInt(1, iterations);
+			stmt.setInt(2, keySize);
+			stmt.setString(3, hashedPassword);
+			stmt.setString(4, username);
+
+			stmt.executeUpdate();
+		} catch (SQLException e) {
+			throw e;
+		} finally {
+			if (stmt != null) { stmt.close(); }
+		}
+	}
 
     /**
     * Looks up a user by their username.
     * @param username The username to lookup.
     */
     public WondoughUser getUser(String username) throws SQLException {
-        Statement stmt = null;
-        String query = "SELECT * FROM users WHERE username='" + username + "' LIMIT 1;";
 
+		// create a prepared statement to insert the user account
+        // into the database
+        PreparedStatement stmt = null;
+        String query = "SELECT * FROM users WHERE username=? LIMIT 1;";
+
+		// try to find the user in the database
         try {
-            stmt = this.connection.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
+            stmt = this.connection.prepareStatement(query);
+            stmt.setString(1, username);
 
+			ResultSet rs = stmt.executeQuery();
+
+			// return user found
             if(rs.next()) {
                 WondoughUser user = new WondoughUser(rs.getInt("id"), rs.getString("username"));
                 user.setHashedPassword(rs.getString("password"));
@@ -184,8 +206,8 @@ public class DbConnection {
 
         try {
             WondoughApp app = new WondoughApp(user.getID());
-            app.setRequestToken(Integer.toString(this.largestRequestToken(), 10));
-            app.setAccessToken(Integer.toString(this.largestAccessToken(), 10));
+            app.setRequestToken(this.nextRequestToken());
+            app.setAccessToken(this.nextAccessToken());
 
             stmt = this.connection.prepareStatement(query);
             stmt.setInt(1, user.getID());
@@ -215,10 +237,10 @@ public class DbConnection {
             ResultSet rs = stmt.executeQuery(query);
 
             while(rs.next()) {
-                String token = config.md5(rs.getString("requestToken"));
+                String token = config.sha(rs.getString("requestToken"));
 
                 if(token.equals(requestToken)) {
-                    return config.md5(rs.getString("accessToken"));
+                    return config.sha(rs.getString("accessToken"));
                 }
             }
         } catch (SQLException e ) {
@@ -245,7 +267,7 @@ public class DbConnection {
             ResultSet rs = stmt.executeQuery(query);
 
             while(rs.next()) {
-                String token = config.md5(rs.getString("accessToken"));
+                String token = config.sha(rs.getString("accessToken"));
 
                 if(token.equals(accessToken)) {
                     return rs.getInt("user");
@@ -298,6 +320,15 @@ public class DbConnection {
             return false;
         }
 
+		// get the balance for the user
+		Transactions result = this.getTransactions(user);
+		float total = result.getAccountBalance();
+
+		// don't allow users to send more money than they have
+		if (amount > total) {
+			return false;
+		}
+		
         PreparedStatement creditStmt = null;
         PreparedStatement debitStmt = null;
         String creditQuery = "INSERT INTO transactions (uid,value,description) VALUES (?,?,?)";

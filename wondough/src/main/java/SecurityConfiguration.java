@@ -16,6 +16,7 @@ import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -31,6 +32,9 @@ public class SecurityConfiguration {
     /** Stores the key size to use for PBKDF2 */
     @Expose
     private int keySize;
+
+	@Expose
+	private int saltSize;
 
     /**
     * Gets the number of iterations to use for PBKDF2.
@@ -83,15 +87,17 @@ public class SecurityConfiguration {
         }
     }
 
-    public String md5(String input) {
+	/**
+	 * Generates a hash of the input
+	 */
+    public String sha(String input) {
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance("SHA-512");
             md.update(input.getBytes());
             byte[] digest = md.digest();
             Base64.Encoder encoder = Base64.getEncoder();
             return encoder.encodeToString(digest);
-        }
-        catch(Exception ex) {
+        } catch(Exception ex) {
             return "";
         }
     }
@@ -100,8 +106,11 @@ public class SecurityConfiguration {
     * Generates a cryptographically secure salt.
     */
     public String generateSalt() {
-        String salt = new SimpleDateFormat("yyyy").format(Calendar.getInstance().getTime());
-        return this.md5(salt);
+		SecureRandom random = new SecureRandom();
+		byte salt[] = new byte[this.saltSize];
+		random.nextBytes(salt);
+		Base64.Encoder encoder = Base64.getEncoder();
+		return encoder.encodeToString(salt);
     }
 
     /**

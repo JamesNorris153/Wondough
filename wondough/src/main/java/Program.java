@@ -62,12 +62,12 @@ public class Program {
             // initialise the database connection
             this.connection = new DbConnection("wondough.db");
 
-            /*WondoughUser intern = new WondoughUser("intern@wondoughbank.com");
-            intern.setSalt(this.securityConfiguration.generateSalt());
-            intern.setHashedPassword(this.securityConfiguration.pbkdf2("password", intern.getSalt()));
-            intern.setIterations(this.securityConfiguration.getIterations());
-            intern.setKeySize(this.securityConfiguration.getKeySize());
-            connection.createUser(intern);*/
+            /*WondoughUser hacker = new WondoughUser(1, "mike");
+            hacker.setSalt(this.securityConfiguration.generateSalt());
+            hacker.setHashedPassword(this.securityConfiguration.pbkdf2("1234", hacker.getSalt()));
+            hacker.setIterations(this.securityConfiguration.getIterations());
+            hacker.setKeySize(this.securityConfiguration.getKeySize());
+            boolean userCreated = connection.createUser(hacker);*/
 
             // we will run on port 8000
             port(8000);
@@ -84,6 +84,10 @@ public class Program {
                 APIController.getTransactions, new JSONTransformer());
             post("/transactions/new", "application/json",
                 APIController.postTransaction, new JSONTransformer());
+
+			// run tests
+			TestingSuite test = new TestingSuite();
+			test.runTests();
         }
         catch(Exception ex) {
             System.out.println(ex.toString());

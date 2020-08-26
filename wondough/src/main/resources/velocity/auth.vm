@@ -13,6 +13,7 @@
             <input type="hidden" name="appname" value="$appname" />
             <div><input type="text" name="username" value="" placeholder="Username" /></div>
             <div><input type="password" name="password" value="" placeholder="Password" /></div>
+			<div class="g-recaptcha" data-sitekey="6Le9l38UAAAAALjJqw2OXy6nxBoG68VdAZo0pwVw"></div>
             <div><input type="submit" value="Submit" /></div>
         </form>
     </div>

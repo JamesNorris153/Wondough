@@ -9,6 +9,7 @@ public class WondoughUser {
     private int keySize;
 
     public WondoughUser(int id, String username) {
+		this.id = id;
         this.username = username;
     }
 

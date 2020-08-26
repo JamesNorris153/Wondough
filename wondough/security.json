@@ -1,4 +1,5 @@
 {
-    "iterations": "1",
-    "keySize": "16"
+    "iterations": "1000",
+    "keySize": "124",
+	"saltSize": "16"
 }

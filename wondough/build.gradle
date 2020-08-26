@@ -3,11 +3,13 @@ buildscript {
         mavenCentral()
     }
     dependencies {
+		classpath 'org.junit.platform:junit-platform-gradle-plugin:1.0.2'
     }
 }
 
 apply plugin: 'java'
 apply plugin: 'application'
+apply plugin: 'org.junit.platform.gradle.plugin'
 
 mainClassName = 'wondough.Program'
 
@@ -22,7 +24,28 @@ dependencies {
     compile group: 'com.sparkjava', name: 'spark-core', version:'2.5'
     compile group: 'com.sparkjava', name: 'spark-template-velocity', version:'2.3'
     compile group: 'org.xerial', name:'sqlite-jdbc', version:'3.8.11.2'
+	compile 'org.glassfish:javax.json:1.0.4'
     compile 'com.google.code.gson:gson:2.8.5'
     compile 'commons-codec:commons-codec:1.8'
-    testCompile("junit:junit")
+    testCompile (
+		'junit:junit:4.12'
+	)
+	testImplementation(
+            'org.junit.jupiter:junit-jupiter-api:5.1.0'
+    )
+    testRuntimeOnly(
+            'org.junit.jupiter:junit-jupiter-engine:5.1.0',
+            'org.junit.vintage:junit-vintage-engine:5.1.0'
+    )
+}
+
+test {
+	useJUnitPlatform()
+	testLogging {
+		events "PASSED", "FAILED", "SKIPPED"
+	}
+}
+
+junitPlatformTest {
+	enableAssertions = true
 }
